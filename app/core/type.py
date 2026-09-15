@@ -46,8 +46,10 @@ class Graph:
         id = str(uuid4())
         key = (source.id, target.id)
 
-        if source.id == target.id or key in self.edge_keys:
-            raise Exception()
+        if source.id == target.id:
+            raise ValueError("Self-loop is not allowed")
+        if key in self.edge_keys:
+            raise ValueError("Duplicate edge")
 
         edge = Edge(id, source, target)
         self.edges.append(id)

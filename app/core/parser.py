@@ -5,7 +5,7 @@ from app.core.type import Graph, Node
 RE_RAW_ITEM = re.compile("<(.*?),(.*?)>")
 
 
-def load(raw: str) -> Graph:
+def load_graph_from_string(raw: str) -> Graph:
     def get_or_create_node(name: str) -> Node:
         if name not in node_by_name:
             node_by_name[name] = graph.add_node(name)
@@ -21,7 +21,7 @@ def load(raw: str) -> Graph:
 
         match = RE_RAW_ITEM.search(line)
         if not match:
-            raise Exception()
+            raise ValueError(f"Invalid input format: '{line}'")
 
         source_name, target_name = (part.strip() for part in match.groups())
         source = get_or_create_node(source_name)
