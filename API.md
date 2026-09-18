@@ -12,16 +12,6 @@
 
 可用于解析 `<A,B>` 形式的依赖关系，检查是否为 DAG，并列出所有可能的拓扑排序。
 
-## 模块结构
-
-假设项目模块如下，实际汇入路径请依项目调整：
-
-```python
-from app.core.type import Graph, Node, Edge
-from app.core.sorter import KahnSorter, TopoSortResult
-from app.core.io import GraphIO
-```
-
 ## 数据模型
 
 ### `Node`
@@ -239,9 +229,7 @@ ValueError("Graph contains a cycle; topological sort is not possible")
 ### 完整使用范例
 
 ```python
-from app.core.type import Graph
-from app.core.io import GraphIO
-from app.core.sorter import KahnSorter
+from app.core import *
 
 graph = GraphIO.load_graph_from_file("graph.txt")
 
@@ -253,7 +241,7 @@ print("边数：", result.edge_count)
 print("方案数：", result.order_count)
 print("耗时：", result.elapsed)
 
-for i, order in enumerate(result.orders, :
+for i, order in enumerate(result.orders):
     names = [node.name for node in order]
     print(f"方案{i}: " + " -> ".join(names))
 
@@ -281,7 +269,7 @@ GraphIO.save_graph_to_file("export.txt", graph)
 规则：
 
 - 空行忽略
-- 每行使用正则 `< (.*?) , (.*?) >` 搜寻
+- 每行使用正则 `<(.*?),(.*?)>` 搜寻
 - 节点名称前后空白会被去除
 - 同一行若有多个 `<...>`，目前只取第一个匹配
 - 节点名称建议使用简单字符串，避免包含 `,` 或 `>`
@@ -324,49 +312,14 @@ B -> A -> C
 
 其他注意事项：
 
-`KahnSorter` 会枚举所有拓扑排序，方案数可能随节点数快速增长，甚至达到阶乘级。大图不建议直接枚举全部。
-`Graph.nodes` 与 `Graph.edges` 储存的是 ID，不是对象。
-`get_adjacency()`、`get_reverse_adjacency()`、`get_in_degree()` 回传的键是节点名称，不是 ID。
-`GraphIO.save_*` 会覆盖同名档案。
-CSV 使用 `utf-，若用 Excel 开启可能需改用 `utf-sig`。
- `Graph.remove_edge()`目前程序代码中`return True`的缩排位于`for` 循环内，可能导致只检查第一个端点就返回。若需删除孤立节点，建议检查并修正此处。
-
-修正范例：
-
-```python
-def remove_edge(self, edge: str) -> bool:
-    existing = self.edge_by_id.get(edge)
-    if existing is None:
-        return False
-
-    source_id = existing.source.id
-    target_id = existing.target.id
-
-    self.edges.remove(edge)
-    del self.edge_by_id[edge]
-    self.edge_keys.remove((source_id, target_id))
-
-    self.adjacency[source_id].discard(target_id)
-    self.reverse_adjacency[target_id].discard(source_id)
-    self.in_degree[target_id] -= 1
-
-    for node_id in (source_id, target_id):
-        if self.in_degree[node_id] == and not self.adjacency[node_id]:
-            self.nodes.remove(node_id)
-            del self.node_by_id[node_id]
-            del self.adjacency[node_id]
-            del self.reverse_adjacency[node_id]
-            del self.in_degree[node_id]
-
-    return True
-```
+- `KahnSorter` 会枚举所有拓扑排序，方案数可能随节点数快速增长，甚至达到阶乘级。大图不建议直接枚举全部。
+- `Graph.nodes` 与 `Graph.edges` 储存的是 ID，不是对象。
+- `get_adjacency()`、`get_reverse_adjacency()`、`get_in_degree()` 回传的键是节点名称，不是 ID。
 
 ## 快速开始
 
 ```python
-from app.core.type import Graph
-from app.core.io import GraphIO
-from app.core.sorter import KahnSorter
+from app.core import *
 
 graph = GraphIO.load_graph_from_file("graph.txt")
 result = KahnSorter(graph).topological_orders()
