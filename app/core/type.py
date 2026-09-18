@@ -1,6 +1,9 @@
 import copy
 from dataclasses import dataclass
+import re
 from uuid import uuid4
+
+RE_RAW_ITEM = re.compile("<(.*?),(.*?)>")
 
 
 @dataclass(eq=False)
@@ -28,6 +31,33 @@ class Graph:
         self.adjacency: dict[str, set[str]] = {}
         self.reverse_adjacency: dict[str, set[str]] = {}
         self.in_degree: dict[str, int] = {}
+
+    @classmethod
+    def from_string(cls, raw: str) -> "Graph":
+        graph = cls()
+        node_by_name: dict[str, Node] = {}
+
+        def get_or_create_node(name: str) -> Node:
+            if name not in node_by_name:
+                node_by_name[name] = graph.add_node(name)
+            return node_by_name[name]
+
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            match = RE_RAW_ITEM.search(line)
+            if not match:
+                raise ValueError(f"Invalid input format: '{line}'")
+
+            source_name, target_name = (part.strip() for part in match.groups())
+            source = get_or_create_node(source_name)
+            target = get_or_create_node(target_name)
+
+            graph.add_edge(source, target)
+
+        return graph
 
     def add_node(self, name: str) -> Node:
         id = str(uuid4())
@@ -61,6 +91,32 @@ class Graph:
         self.in_degree[target.id] += 1
 
         return edge
+
+    def remove_edge(self, edge: str) -> bool:
+        existing = self.edge_by_id.get(edge)
+        if existing is None:
+            return False
+        else:
+            source_id = existing.source.id
+            target_id = existing.target.id
+
+            self.edges.remove(edge)
+            del self.edge_by_id[edge]
+            self.edge_keys.remove((source_id, target_id))
+
+            self.adjacency[source_id].discard(target_id)
+            self.reverse_adjacency[target_id].discard(source_id)
+            self.in_degree[target_id] -= 1
+
+        for node_id in (source_id, target_id):
+            if self.in_degree[node_id] == 0 and not self.adjacency[node_id]:
+                self.nodes.remove(node_id)
+                del self.node_by_id[node_id]
+                del self.adjacency[node_id]
+                del self.reverse_adjacency[node_id]
+                del self.in_degree[node_id]
+
+            return True
 
     def get_node(self, id: str) -> Node | None:
         return self.node_by_id.get(id)

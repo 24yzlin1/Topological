@@ -1,7 +1,17 @@
 import copy
+from datetime import timedelta
 import time
+from typing import NamedTuple
 
-from app.core.type import Graph, Node
+from .type import Graph, Node
+
+
+class TopoSortResult(NamedTuple):
+    orders: list[list["Node"]]
+    elapsed: timedelta
+    node_count: int
+    edge_count: int
+    order_count: int
 
 
 class KahnSorter:
@@ -48,9 +58,15 @@ class KahnSorter:
     def sort(self) -> list[list[Node]]:
         return [[self.graph.get_node(node) for node in path] for path in self._sort()]  # type: ignore
 
-    def sort_with_benchmark(self) -> tuple[list[list[Node]], float]:
+    def topological_orders(self) -> TopoSortResult:
         start = time.perf_counter()
-        result = self.sort()
-        end = time.perf_counter()
+        orders = self.sort()
+        elapsed = timedelta(seconds=time.perf_counter() - start)
 
-        return result, end - start
+        return TopoSortResult(
+            orders=orders,
+            elapsed=elapsed,
+            node_count=len(self.graph.nodes),
+            edge_count=len(self.graph.edges),
+            order_count=len(orders),
+        )
