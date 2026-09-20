@@ -8,3 +8,11 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Agent config
+.omo/
+Agent.md
+
+# Test files
+.txt
+.csv
