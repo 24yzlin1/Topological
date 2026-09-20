@@ -11,8 +11,8 @@ wheels/
 
 # Agent config
 .omo/
-Agent.md
+AGENTS.md
 
 # Test files
-.txt
-.csv
+*.txt
+sort.csv
