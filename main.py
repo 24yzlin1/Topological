@@ -1,39 +1,25 @@
-from app.core import GraphIO
-from app.core import KahnSorter
-from app.core import Graph
+from __future__ import annotations
+
+import sys
+
+from PySide6.QtGui import QGuiApplication
+from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuickControls2 import QQuickStyle
+
+from app.qml import QML_ROOT, Backend
 
 
 def main():
-    print("Hello from topological!")
+    QQuickStyle.setStyle("Material")
+    # QQuickStyle.setStyle("FluentWinUI3")
 
-    graph = Graph.from_string("""
-    <A,B>
-    <A,C>
-    <B,D>
-    <C,D>
-    <C,E>
-    <D,F>
-    <E,F>
-    """)
+    app = QGuiApplication(sys.argv)
+    backend = Backend()
+    engine = QQmlApplicationEngine()
+    engine.rootContext().setContextProperty("backend", backend)
+    engine.load(str(QML_ROOT / "Main.qml"))
 
-    # graph = Graph.from_string("""
-    # <A,A>
-    # <B,B>
-    # <C,C>
-    # """)
-
-    # graph = Graph.from_string("""
-    # <A,B>
-    # <B,C>
-    # <C,A>
-    # """)
-
-    raw_paths = KahnSorter(graph).sort()
-    for path in [[node.name for node in path] for path in raw_paths]:
-        print(" > ".join(path))
-
-    GraphIO.save_graph_to_file("graph.txt", graph)
-    GraphIO.save_sorts_to_csv("sort.csv", raw_paths)
+    app.exec()
 
 
 if __name__ == "__main__":
