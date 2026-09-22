@@ -15,7 +15,6 @@ Item {
         // Toggle button
         Button {
             text: stack.currentIndex === 0 ? qsTr("切换到图形视图") : qsTr("切换到排序结果")
-            flat: true
             onClicked: stack.currentIndex = stack.currentIndex === 0 ? 1 : 0
         }
 

@@ -33,7 +33,6 @@ Item {
                     spacing: 8
                     Button {
                         text: qsTr("从文件导入")
-                        flat: true
                         onClicked: fileDialog.open()
                     }
                     Item {
