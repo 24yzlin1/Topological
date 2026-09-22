@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import AppBackend 1.0
 
 Item {
     id: root
@@ -53,10 +54,10 @@ Item {
                 anchors.fill: parent
                 spacing: 4
                 Label {
-                    text: qsTr("节点数：") + (backend.hasGraph ? backend.nodeCount : "—")
+                    text: qsTr("节点数：") + (Backend.hasGraph ? Backend.nodeCount : "—")
                 }
                 Label {
-                    text: qsTr("边数：") + (backend.hasGraph ? backend.edgeCount : "—")
+                    text: qsTr("边数：") + (Backend.hasGraph ? Backend.edgeCount : "—")
                 }
             }
         }
@@ -65,10 +66,10 @@ Item {
         id: fileDialog
         title: qsTr("选择图文件")
         nameFilters: ["文本文件 (*.txt)", "所有文件 (*)"]
-        onAccepted: backend.readFile(selectedFile)
+        onAccepted: Backend.readFile(selectedFile)
     }
     Connections {
-        target: backend
+        target: Backend
         function onFileLoaded(text) {
             editor.text = text;
         }

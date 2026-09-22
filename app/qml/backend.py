@@ -19,6 +19,13 @@ from app.ui.workers.sort_worker import SortWorker
 _SORT_CONFIRM_THRESHOLD = 10
 _DISPLAY_LIMIT = 1000
 
+# Graph layout constants — must match node dimensions in GraphView.qml
+_NODE_W = 100.0
+_NODE_H = 36.0
+_LAYER_GAP = 120.0
+_NODE_GAP = 50.0
+_PADDING = 30.0
+
 QML_ROOT = Path(__file__).resolve().parent / "qml"
 
 
@@ -32,6 +39,7 @@ class Backend(QObject):
     sortRunningChanged = Signal()
     statsChanged = Signal()
     truncatedChanged = Signal()
+    graphLayoutChanged = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -44,6 +52,10 @@ class Backend(QObject):
         self._stats_text = "尚未排序"
         self._truncated = False
         self._truncation_text = ""
+        self._node_layout: list[dict] = []
+        self._edge_layout: list[dict] = []
+        self._canvas_width: float = 0.0
+        self._canvas_height: float = 0.0
 
     @Property(bool, notify=graphChanged)
     def hasGraph(self) -> bool:
@@ -81,6 +93,22 @@ class Backend(QObject):
     def confirmThreshold(self) -> int:
         return _SORT_CONFIRM_THRESHOLD
 
+    @Property(list, notify=graphLayoutChanged)
+    def nodeLayout(self) -> list:
+        return self._node_layout
+
+    @Property(list, notify=graphLayoutChanged)
+    def edgeLayout(self) -> list:
+        return self._edge_layout
+
+    @Property(float, notify=graphLayoutChanged)
+    def graphViewWidth(self) -> float:
+        return self._canvas_width
+
+    @Property(float, notify=graphLayoutChanged)
+    def graphViewHeight(self) -> float:
+        return self._canvas_height
+
     @Slot(str)
     def loadFromText(self, raw: str) -> None:
         try:
@@ -94,6 +122,7 @@ class Backend(QObject):
             return
 
         self._graph = graph
+        self._compute_graph_layout()
         self._clear_results()
         self.graphChanged.emit()
         self.status.emit("图载入成功")
@@ -164,6 +193,89 @@ class Backend(QObject):
         self._truncation_text = ""
         self.statsChanged.emit()
         self.truncatedChanged.emit()
+
+    def _compute_graph_layout(self) -> None:
+        """Compute a layered layout (left-to-right) for the DAG visualization.
+        Nodes in the same topological layer are stacked vertically."""
+        graph = self._graph
+
+        if graph is None or not graph.nodes:
+            self._node_layout = []
+            self._edge_layout = []
+            self._canvas_width = 0.0
+            self._canvas_height = 0.0
+            self.graphLayoutChanged.emit()
+            return
+
+        # Layer = longest path from any source node
+        in_deg = dict(graph.in_degree)
+        layer: dict[str, int] = {}
+        queue = [nid for nid in graph.nodes if in_deg[nid] == 0]
+        for nid in queue:
+            layer[nid] = 0
+
+        while queue:
+            nid = queue.pop(0)
+            for succ in graph.adjacency[nid]:
+                in_deg[succ] -= 1
+                if in_deg[succ] == 0:
+                    preds = graph.reverse_adjacency[succ]
+                    layer[succ] = max(layer[p] for p in preds) + 1
+                    queue.append(succ)
+
+        # Place any cyclic nodes (unreached by Kahn's) in the last layer
+        max_l = max(layer.values()) if layer else -1
+        for nid in graph.nodes:
+            if nid not in layer:
+                layer[nid] = max_l + 1
+
+        # Group by layer
+        layer_groups: dict[int, list[str]] = {}
+        for nid, lyr in layer.items():
+            layer_groups.setdefault(lyr, []).append(nid)
+
+        # Compute canvas size
+        max_nodes_in_layer = max(len(g) for g in layer_groups.values())
+        total_h = max(1, max_nodes_in_layer) * (_NODE_H + _NODE_GAP)
+        max_layer_id = max(layer_groups.keys())
+        canvas_w = max_layer_id * (_NODE_W + _LAYER_GAP) + _NODE_W + 2 * _PADDING
+        canvas_h = total_h + 2 * _PADDING
+
+        # Assign coordinates
+        pos: dict[str, tuple[float, float]] = {}
+        nodes: list[dict] = []
+        for lyr, nids in sorted(layer_groups.items()):
+            count = len(nids)
+            group_h = count * (_NODE_H + _NODE_GAP) - _NODE_GAP
+            start_y = _PADDING + (total_h - group_h) / 2
+            x = _PADDING + lyr * (_NODE_W + _LAYER_GAP)
+            for i, nid in enumerate(nids):
+                y = start_y + i * (_NODE_H + _NODE_GAP)
+                pos[nid] = (x, y)
+                nodes.append({
+                    "name": graph.node_by_id[nid].name,
+                    "x": x,
+                    "y": y,
+                })
+
+        # Edge endpoints: right-center of source to left-center of target
+        edges: list[dict] = []
+        for eid in graph.edges:
+            edge = graph.edge_by_id[eid]
+            sx, sy = pos[edge.source.id]
+            tx, ty = pos[edge.target.id]
+            edges.append({
+                "fromX": sx + _NODE_W,
+                "fromY": sy + _NODE_H / 2,
+                "toX": tx,
+                "toY": ty + _NODE_H / 2,
+            })
+
+        self._node_layout = nodes
+        self._edge_layout = edges
+        self._canvas_width = canvas_w
+        self._canvas_height = canvas_h
+        self.graphLayoutChanged.emit()
 
     def _update_orders(self, result: TopoSortResult) -> None:
         total = result.order_count

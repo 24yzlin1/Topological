@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs
+import AppBackend 1.0
 
 ApplicationWindow {
     id: window
@@ -16,13 +17,13 @@ ApplicationWindow {
             id: inputPanel
             SplitView.fillWidth: true
             SplitView.minimumWidth: 240
-            onLoadRequested: text => backend.loadFromText(text)
+            onLoadRequested: text => Backend.loadFromText(text)
         }
         ResultsPanel {
             id: resultsPanel
             SplitView.fillWidth: true
             SplitView.minimumWidth: 240
-            onSortRequested: backend.requestSort()
+            onSortRequested: Backend.requestSort()
         }
     }
     footer: ToolBar {
@@ -40,7 +41,7 @@ ApplicationWindow {
         }
     }
     Connections {
-        target: backend
+        target: Backend
         function onStatus(text) {
             statusLabel.text = text;
             statusTimer.restart();
@@ -63,10 +64,10 @@ ApplicationWindow {
         id: confirmDialog
         title: qsTr("确认排序")
         buttons: MessageDialog.Yes | MessageDialog.No
-        onAccepted: backend.startSort()
+        onAccepted: Backend.startSort()
     }
     onClosing: close => {
-        backend.shutdown();
+        Backend.shutdown();
         close.accepted = true;
     }
 }
