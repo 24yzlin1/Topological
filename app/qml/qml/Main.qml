@@ -9,7 +9,7 @@ ApplicationWindow {
     width: 900
     height: 600
     visible: true
-    title: qsTr(" ")
+    title: qsTr("课程拓扑排序工具")
     SplitView {
         anchors.fill: parent
         orientation: Qt.Horizontal
