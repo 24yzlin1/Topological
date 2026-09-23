@@ -1,21 +1,49 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import AppBackend 1.0
 
 Item {
     id: root
     signal sortRequested
 
+    // 0 = txt export, 1 = image export
+    property int _exportMode: 0
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 12
         spacing: 12
 
-        // Toggle button
-        Button {
-            text: stack.currentIndex === 0 ? qsTr("切换到图形视图") : qsTr("切换到排序结果")
-            onClicked: stack.currentIndex = stack.currentIndex === 0 ? 1 : 0
+        // Toggle + Export buttons
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Button {
+                text: stack.currentIndex === 0 ? qsTr("切换到图形视图") : qsTr("切换到排序结果")
+                onClicked: stack.currentIndex = stack.currentIndex === 0 ? 1 : 0
+            }
+
+            Item { Layout.fillWidth: true }
+
+            Button {
+                text: stack.currentIndex === 0 ? qsTr("导出 TXT") : qsTr("导出图片")
+                enabled: stack.currentIndex === 0 ? Backend.hasResult : Backend.hasGraph
+                onClicked: {
+                    if (stack.currentIndex === 0) {
+                        root._exportMode = 0
+                        exportDialog.defaultSuffix = "txt"
+                        exportDialog.nameFilters = ["文本文件 (*.txt)"]
+                    } else {
+                        root._exportMode = 1
+                        exportDialog.defaultSuffix = "png"
+                        exportDialog.nameFilters = ["PNG 图片 (*.png)"]
+                    }
+                    exportDialog.open()
+                }
+            }
         }
 
         StackLayout {
@@ -80,8 +108,21 @@ Item {
 
             // Page 1: Graph visualization
             GraphView {
+                id: graphView
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+            }
+        }
+    }
+
+    FileDialog {
+        id: exportDialog
+        fileMode: FileDialog.SaveFile
+        onAccepted: {
+            if (root._exportMode === 0) {
+                Backend.exportTxt(selectedFile)
+            } else {
+                graphView.grabToFile(selectedFile)
             }
         }
     }

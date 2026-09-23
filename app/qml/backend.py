@@ -13,7 +13,7 @@ from PySide6.QtCore import (
     Slot,
 )
 
-from app.core import Graph, TopoSortResult
+from app.core import Graph, GraphIO, TopoSortResult
 from app.ui.workers.sort_worker import SortWorker
 
 _SORT_CONFIRM_THRESHOLD = 10
@@ -40,6 +40,7 @@ class Backend(QObject):
     statsChanged = Signal()
     truncatedChanged = Signal()
     graphLayoutChanged = Signal()
+    resultChanged = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -56,6 +57,7 @@ class Backend(QObject):
         self._edge_layout: list[dict] = []
         self._canvas_width: float = 0.0
         self._canvas_height: float = 0.0
+        self._last_result: TopoSortResult | None = None
 
     @Property(bool, notify=graphChanged)
     def hasGraph(self) -> bool:
@@ -108,6 +110,10 @@ class Backend(QObject):
     @Property(float, notify=graphLayoutChanged)
     def graphViewHeight(self) -> float:
         return self._canvas_height
+
+    @Property(bool, notify=resultChanged)
+    def hasResult(self) -> bool:
+        return self._last_result is not None
 
     @Slot(str)
     def loadFromText(self, raw: str) -> None:
@@ -170,6 +176,8 @@ class Backend(QObject):
         self._thread.start()
 
     def _on_sort_finished(self, result: TopoSortResult) -> None:
+        self._last_result = result
+        self.resultChanged.emit()
         self._update_orders(result)
         self._set_sort_running(False)
         self.status.emit("排序完成")
@@ -191,6 +199,8 @@ class Backend(QObject):
         self._stats_text = "尚未排序"
         self._truncated = False
         self._truncation_text = ""
+        self._last_result = None
+        self.resultChanged.emit()
         self.statsChanged.emit()
         self.truncatedChanged.emit()
 
@@ -312,6 +322,23 @@ class Backend(QObject):
             self._thread = None
             self._worker = None
             return False
+
+    @Slot(QUrl)
+    def exportTxt(self, url: QUrl) -> None:
+        if self._last_result is None:
+            self.message.emit("导出失败", "没有排序结果可导出")
+            return
+        path = url.toLocalFile()
+        try:
+            GraphIO.save_sorts_to_txt(path, self._last_result.orders)
+        except OSError as exc:
+            self.message.emit("导出失败", f"无法写入文件：\n{exc}")
+            return
+        self.status.emit("排序结果已导出")
+
+    @Slot(str)
+    def onImageExported(self, path: str) -> None:
+        self.status.emit("图片已导出")
 
     @Slot()
     def shutdown(self) -> None:

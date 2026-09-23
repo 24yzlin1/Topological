@@ -5,6 +5,13 @@ import AppBackend 1.0
 Item {
     id: root
 
+    function grabToFile(url) {
+        graphContent.grabToImage(function(result) {
+            result.saveToFile(url)
+            Backend.onImageExported("")
+        })
+    }
+
     Flickable {
         id: flickable
         anchors.fill: parent
@@ -16,69 +23,76 @@ Item {
         ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
-        // Edge layer (drawn first, behind nodes)
-        Canvas {
-            id: edgeCanvas
+        // Wrapper — grabbable unit containing edges + nodes
+        Item {
+            id: graphContent
             width: Backend.graphViewWidth
             height: Backend.graphViewHeight
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.reset()
-                ctx.strokeStyle = "#9e9e9e"
-                ctx.lineWidth = 1.5
-                ctx.fillStyle = "#9e9e9e"
 
-                var edges = Backend.edgeLayout
-                for (var i = 0; i < edges.length; i++) {
-                    var e = edges[i]
+            // Edge layer (drawn first, behind nodes)
+            Canvas {
+                id: edgeCanvas
+                width: Backend.graphViewWidth
+                height: Backend.graphViewHeight
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.reset()
+                    ctx.strokeStyle = "#9e9e9e"
+                    ctx.lineWidth = 1.5
+                    ctx.fillStyle = "#9e9e9e"
 
-                    // Line
-                    ctx.beginPath()
-                    ctx.moveTo(e.fromX, e.fromY)
-                    ctx.lineTo(e.toX, e.toY)
-                    ctx.stroke()
+                    var edges = Backend.edgeLayout
+                    for (var i = 0; i < edges.length; i++) {
+                        var e = edges[i]
 
-                    // Arrowhead at target
-                    var angle = Math.atan2(e.toY - e.fromY, e.toX - e.fromX)
-                    var arrowLen = 8
-                    var arrowAngle = Math.PI / 7
-                    ctx.beginPath()
-                    ctx.moveTo(e.toX, e.toY)
-                    ctx.lineTo(
-                        e.toX - arrowLen * Math.cos(angle - arrowAngle),
-                        e.toY - arrowLen * Math.sin(angle - arrowAngle)
-                    )
-                    ctx.lineTo(
-                        e.toX - arrowLen * Math.cos(angle + arrowAngle),
-                        e.toY - arrowLen * Math.sin(angle + arrowAngle)
-                    )
-                    ctx.closePath()
-                    ctx.fill()
+                        // Line
+                        ctx.beginPath()
+                        ctx.moveTo(e.fromX, e.fromY)
+                        ctx.lineTo(e.toX, e.toY)
+                        ctx.stroke()
+
+                        // Arrowhead at target
+                        var angle = Math.atan2(e.toY - e.fromY, e.toX - e.fromX)
+                        var arrowLen = 8
+                        var arrowAngle = Math.PI / 7
+                        ctx.beginPath()
+                        ctx.moveTo(e.toX, e.toY)
+                        ctx.lineTo(
+                            e.toX - arrowLen * Math.cos(angle - arrowAngle),
+                            e.toY - arrowLen * Math.sin(angle - arrowAngle)
+                        )
+                        ctx.lineTo(
+                            e.toX - arrowLen * Math.cos(angle + arrowAngle),
+                            e.toY - arrowLen * Math.sin(angle + arrowAngle)
+                        )
+                        ctx.closePath()
+                        ctx.fill()
+                    }
                 }
+                Component.onCompleted: requestPaint()
             }
-            Component.onCompleted: requestPaint()
-        }
 
-        // Node layer (drawn on top of edges)
-        Repeater {
-            model: Backend.nodeLayout
-            Rectangle {
-                x: modelData.x
-                y: modelData.y
-                width: 100   // must match _NODE_W in backend.py
-                height: 36   // must match _NODE_H in backend.py
-                color: "#e3f2fd"
-                border.color: "#1976d2"
-                border.width: 1
-                radius: 4
-                Text {
-                    anchors.fill: parent
-                    anchors.margins: 4
-                    text: modelData.name
-                    font.pixelSize: 13
-                    elide: Text.ElideRight
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
+            // Node layer (drawn on top of edges)
+            Repeater {
+                model: Backend.nodeLayout
+                Rectangle {
+                    x: modelData.x
+                    y: modelData.y
+                    width: 100   // must match _NODE_W in backend.py
+                    height: 36   // must match _NODE_H in backend.py
+                    color: "#e3f2fd"
+                    border.color: "#1976d2"
+                    border.width: 1
+                    radius: 4
+                    Text {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        text: modelData.name
+                        font.pixelSize: 13
+                        elide: Text.ElideRight
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
                 }
             }
         }
